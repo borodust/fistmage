@@ -2,8 +2,13 @@
 
 (declaim (special *cursor*))
 
+(defgeneric initialize-game (game-instance)
+  (:method (game-instance) (declare (ignore game-instance))))
+(defgeneric destroy-game (game-instance)
+  (:method (game-instance) (declare (ignore game-instance))))
+
 (defgeneric game-initial-state-class (game-instance))
-(defgeneric initialize-game (game-instance))
+(defgeneric initialize-game-instance (game-instance))
 
 
 (defclass game ()
@@ -37,7 +42,7 @@
             finally (return (values game-opts gamekit-opts)))
     `(progn
        (gamekit:defgame ,name (game) () ,@gamekit-opts)
-       (defmethod initialize-game ((this ,name))
+       (defmethod initialize-game-instance ((this ,name))
          (%initialize-game this ,@game-opts))
        (defmethod game-initial-state-class ((this ,name))
          (declare (ignore this))
@@ -64,7 +69,7 @@
 
 (defmethod gamekit:post-initialize ((this game))
   (with-slots (cursor game-state) this
-    (initialize-game this)
+    (initialize-game-instance this)
     (gamekit:bind-cursor (lambda (x y)
                            (setf (gamekit:x cursor) x
                                  (gamekit:y cursor) y)))
@@ -74,7 +79,12 @@
                  (:pressed (button-pressed game-state button))
                  (:released (button-released game-state button))))))
       (gamekit:bind-any-button #'process-button))
+    (initialize-game this)
     (transition-to (game-initial-state-class this))))
+
+
+(defmethod gamekit:pre-destroy ((this game))
+  (destroy-game this))
 
 
 (defmethod gamekit:act ((this game))
@@ -89,8 +99,9 @@
       (draw game-state))))
 
 
-(defun start (game-class)
+(defun start (game-class &key resizable)
   (gamekit:start game-class :samples 4
+                            :viewport-resizable resizable
                             :opengl-version '(2 1)))
 
 
